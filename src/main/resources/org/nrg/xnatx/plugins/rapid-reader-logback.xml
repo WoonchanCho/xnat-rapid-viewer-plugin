@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<configuration>
+    <appender name="rapid-viewer-plugin" class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <append>true</append>
+        <file>${xnat.home}/logs/rapid-viewer-plugin.log</file>
+        <encoder>
+            <pattern>%d [%t] %-5p %c - %m%n</pattern>
+        </encoder>
+        <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
+            <fileNamePattern>${xnat.home}/logs/rapid-viewer-plugin.log.%d{yyyy-MM-dd}</fileNamePattern>
+        </rollingPolicy>
+    </appender>
+    <logger name="org.nrg.xnatx.plugins.rapidViewer" additivity="false" level="TRACE">
+        <appender-ref ref="rapid-viewer-plugin"/>
+    </logger>
+</configuration>
+

@@ -1,0 +1,17 @@
+# Logging, System files, misc.
+.DS_Store
+
+*.iml
+*.log
+.classpath
+.gradle*
+.idea/
+.project
+.settings/
+bin
+build/
+dep*.txt
+gradle.properties
+ide-bin/
+lib/
+out/
