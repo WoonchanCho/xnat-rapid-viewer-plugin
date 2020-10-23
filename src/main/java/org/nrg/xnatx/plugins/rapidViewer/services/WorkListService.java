@@ -15,9 +15,11 @@ import org.nrg.xnatx.plugins.rapidViewer.entities.WorkList;
 import org.nrg.xnatx.plugins.rapidViewer.entities.WorkList.WorkListStatus;
 
 public interface WorkListService extends BaseHibernateService<WorkList> {
-    WorkList findById(final Long id);
+	WorkList findById(final Long id);
 
-    List<WorkList> findByOwnerXdatUserId(final Integer ownerXdatUserId);
-    
-    List<WorkList> findByOwnerXdatUserIdAndStatus(final Integer ownerXdatUserId, WorkListStatus status);
+	public List<WorkList> getWorkLists(final Integer ownerXdatUserId, String orderBy, boolean isAsc, Integer offset,
+			Integer limit);
+
+	public List<WorkList> getWorkListsByStatus(final Integer ownerXdatUserId, final WorkListStatus status,
+			String orderBy, boolean isAsc, int offset, int limit);
 }

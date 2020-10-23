@@ -18,10 +18,13 @@ import javax.persistence.EnumType;
 import javax.persistence.Enumerated;
 import javax.persistence.FetchType;
 import javax.persistence.OneToMany;
+import javax.persistence.OrderBy;
 import javax.validation.constraints.NotNull;
 
 import org.hibernate.annotations.Cache;
 import org.hibernate.annotations.CacheConcurrencyStrategy;
+import org.hibernate.annotations.Fetch;
+import org.hibernate.annotations.FetchMode;
 import org.nrg.framework.orm.hibernate.AbstractHibernateEntity;
 
 import com.fasterxml.jackson.annotation.JsonManagedReference;
@@ -31,7 +34,6 @@ import lombok.EqualsAndHashCode;
 import lombok.NoArgsConstructor;
 import lombok.ToString;
 import lombok.experimental.Accessors;
-
 
 @Entity
 @Data
@@ -44,7 +46,7 @@ public class WorkList extends AbstractHibernateEntity {
 	private static final long serialVersionUID = 1L;
 
 	public static enum WorkListStatus {
-		InProgress, Open, Partial, Complete
+		InProgress, Open, Partial, Complete, Cancelled
 	}
 
 	@Converter(autoApply = true)
@@ -90,17 +92,19 @@ public class WorkList extends AbstractHibernateEntity {
 
 	@NotNull
 	private String _reportId;
-	
+
 	private Boolean _formDisabledWhenComplete = true;
-	
+
 	private List<WorkItem> _items;
 
 	@JsonManagedReference
 	@OneToMany(targetEntity = WorkItem.class, mappedBy = "workList", fetch = FetchType.EAGER)
+	@OrderBy("id ASC")
+	@Fetch(FetchMode.SELECT)
 	public List<WorkItem> getItems() {
 		return this._items;
 	}
-	
+
 	public void preCreate() {
 		if (_status == null) {
 			_status = WorkListStatus.InProgress;

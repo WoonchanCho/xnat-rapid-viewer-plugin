@@ -15,9 +15,9 @@ import org.nrg.xnatx.plugins.rapidViewer.entities.WorkItem;
 import org.nrg.xnatx.plugins.rapidViewer.entities.WorkItem.WorkItemStatus;
 
 public interface WorkItemService extends BaseHibernateService<WorkItem> {
-    WorkItem findById(final Long id);
+	WorkItem findById(final Long id);
 
-    List<WorkItem> findByWorkListId(final Long workListId);
-    
-    List<WorkItem> findByWorkListIdAndStatus(final Long workListId, WorkItemStatus status);
+	public List<WorkItem> getWorkItems(Long workListId);
+
+	public List<WorkItem> getWorkItemsByStatus(Long workListId, WorkItemStatus status);
 }

@@ -9,7 +9,6 @@
 package org.nrg.xnatx.plugins.rapidViewer.rest;
 
 import static org.nrg.xdat.security.helpers.AccessLevel.Admin;
-import static org.nrg.xdat.security.helpers.AccessLevel.Null;
 
 import java.security.Principal;
 import java.util.ArrayList;
@@ -96,30 +95,31 @@ public class WorkListApi extends AbstractXapiRestController {
 			@ApiResponse(code = 401, message = "Must be authenticated to access the XNAT REST API."),
 			@ApiResponse(code = 500, message = "Unexpected error") })
 	@XapiRequestMapping(value = "check", produces = { MediaType.APPLICATION_JSON_VALUE }, method = RequestMethod.GET)
-	public void checkifPluginExists()
-			throws NotFoundException {
+	public void checkifPluginExists() throws NotFoundException {
 		log.trace("/workLists/check [GET] called");
 	}
-	
+
 	@ApiOperation(value = "Returns a list of workLists of a user.", response = WorkList.class, responseContainer = "List")
 	@ApiResponses({ @ApiResponse(code = 200, message = "WorkLists successfully retrieved."),
 			@ApiResponse(code = 401, message = "Must be authenticated to access the XNAT REST API."),
 			@ApiResponse(code = 500, message = "Unexpected error") })
 	@XapiRequestMapping(produces = { MediaType.APPLICATION_JSON_VALUE }, method = RequestMethod.GET)
 	public List<WorkList> getEntities(Principal principal,
-			@ApiParam(value = "Status", required = false) @RequestParam(required = false) final WorkListStatus status)
-//			@ApiParam(value = "Offset", required = false) @RequestParam(required = false) final Long offset,
-//			@ApiParam(value = "Limit", required = false) @RequestParam(required = false) final Long limit)
+			@ApiParam(value = "Status", required = false) @RequestParam(required = false) final WorkListStatus status,
+			@ApiParam(value = "Offset", required = false) @RequestParam(required = false, defaultValue = "0") final Integer offset,
+			@ApiParam(value = "Limit", required = false) @RequestParam(required = false, defaultValue = "25") final Integer limit,
+			@ApiParam(value = "OrderBy", required = false) @RequestParam(required = false, defaultValue = "id") final String orderBy,
+			@ApiParam(value = "Asc", required = false) @RequestParam(required = false, defaultValue = "false") final Boolean isAsc)
 			throws NotFoundException {
-		log.trace("/workLists [GET] called [status={}]", status);
+		log.trace("/workLists [GET] called [status={}, offset={}, limit={}, orderBy={}, asc={}]", status, offset, limit,
+				orderBy, isAsc);
 		UserI user = readUser(principal.getName());
 		Integer ownerXdatUserId = user.getID();
 
 		if (status == null) {
-			return _workListService.findByOwnerXdatUserId(ownerXdatUserId);
+			return _workListService.getWorkLists(ownerXdatUserId, orderBy, isAsc, offset, limit);
 		} else {
-
-			return _workListService.findByOwnerXdatUserIdAndStatus(ownerXdatUserId, status);
+			return _workListService.getWorkListsByStatus(ownerXdatUserId, status, orderBy, isAsc, offset, limit);
 		}
 	}
 
@@ -168,27 +168,61 @@ public class WorkListApi extends AbstractXapiRestController {
 		return _workListService.create(workList);
 	}
 
-	@ApiOperation(value = "Updates the indicated workList.", notes = "Based on primary key ID, not subject or record ID.", response = Long.class)
+	@ApiOperation(value = "Updates the indicated workList.", notes = "Based on primary key ID, not subject or record ID.", response = WorkList.class)
 	@ApiResponses({ @ApiResponse(code = 200, message = "WorkList successfully updated."),
 			@ApiResponse(code = 401, message = "Must be authenticated to access the XNAT REST API."),
 			@ApiResponse(code = 500, message = "Unexpected error") })
 	@XapiRequestMapping(value = "{workListId}", produces = {
 			MediaType.APPLICATION_JSON_VALUE }, method = RequestMethod.PUT, restrictTo = Admin)
-	public WorkList updateEntity(@PathVariable final Long workListId, @RequestBody final WorkListDto dto)
+	public WorkList updateWorkList(@PathVariable final Long workListId, @RequestBody final WorkListDto dto)
 			throws NotFoundException {
 		log.trace("/workLists/{} [PUT] called: {}", workListId, dto.toString());
-		if (!_workListService.exists("id", workListId)) {
+		final WorkList workList = _workListService.findById(workListId);
+		if (workList == null) {
 			throw new NotFoundException("No workList with the ID \"" + workListId + "\" was found.");
 		}
-		final WorkList existing = _workListService.findById(workListId);
-		existing.setName(dto.getName());
-		existing.setDescription(dto.getDescription());
-		existing.setStatus(dto.getStatus());
-		existing.setDueDate(dto.getDueDate());
-		existing.setReportId(dto.getReportId());
-		existing.preCreate();
-		_workListService.update(existing);
-		return existing;
+		workList.setName(dto.getName());
+		workList.setDescription(dto.getDescription());
+		workList.setStatus(dto.getStatus());
+		workList.setDueDate(dto.getDueDate());
+		workList.setReportId(dto.getReportId());
+		workList.setFormDisabledWhenComplete(dto.getFormDisabledWhenComplete());
+		workList.preCreate();
+		_workListService.update(workList);
+		return workList;
+	}
+
+	@ApiOperation(value = "Updates the workList status.", response = Long.class)
+	@ApiResponses({ @ApiResponse(code = 200, message = "WorkList successfully updated."),
+			@ApiResponse(code = 401, message = "Must be authenticated to access the XNAT REST API."),
+			@ApiResponse(code = 500, message = "Unexpected error") })
+	@XapiRequestMapping(value = "{workListId}/status/{status}", produces = {
+			MediaType.APPLICATION_JSON_VALUE }, method = RequestMethod.PUT)
+	public WorkList updateWorkListStatus(Principal principal, @PathVariable final Long workListId,
+			@PathVariable final WorkListStatus status) throws NotFoundException {
+		log.trace("/workLists/{}/status/{} [PUT] called: {}", workListId, status);
+		UserI user = readUser(principal.getName());
+		Integer ownerXdatUserId = user.getID();
+
+		final WorkList workList = _workListService.findById(workListId);
+		if (workList == null) {
+			if (Roles.isSiteAdmin(user)) {
+				throw new NotFoundException("No workList with the ID \"" + workListId + "\" was found.");
+			} else {
+				throw new AccessDeniedException("Access to the ID \"" + workListId + "\" is forbidden");
+			}
+		}
+		if (!Roles.isSiteAdmin(user) && ownerXdatUserId != workList.getOwnerXdatUserId()) {
+			throw new AccessDeniedException("Access to the ID \"" + workListId + "\" is forbidden");
+		}
+
+		if (status == workList.getStatus()) {
+			return workList;
+		}
+
+		workList.setStatus(status);
+		_workListService.update(workList);
+		return workList;
 	}
 
 	@ApiOperation(value = "Deletes the indicated workList.", notes = "Based on primary key ID, not subject or record ID.", response = Long.class)
@@ -230,9 +264,9 @@ public class WorkListApi extends AbstractXapiRestController {
 		}
 
 		if (status == null) {
-			return _workItemService.findByWorkListId(workListId);
+			return _workItemService.getWorkItems(workListId);
 		} else {
-			return _workItemService.findByWorkListIdAndStatus(workListId, status);
+			return _workItemService.getWorkItemsByStatus(workListId, status);
 		}
 	}
 
@@ -345,6 +379,44 @@ public class WorkListApi extends AbstractXapiRestController {
 		existing.setExperimentLabel(dto.getExperimentLabel());
 		_workItemService.update(existing);
 		return workItemId;
+	}
+
+	@ApiOperation(value = "Updates the workItem status.", response = WorkItem.class)
+	@ApiResponses({ @ApiResponse(code = 200, message = "WorkList successfully updated."),
+			@ApiResponse(code = 401, message = "Must be authenticated to access the XNAT REST API."),
+			@ApiResponse(code = 500, message = "Unexpected error") })
+	@XapiRequestMapping(value = "{workListId}/items/{workItemId}/status/{status}", produces = {
+			MediaType.APPLICATION_JSON_VALUE }, method = RequestMethod.PUT)
+	public WorkItem updateEntity(Principal principal, @PathVariable final Long workListId,
+			@PathVariable final Long workItemId, @PathVariable final WorkItemStatus status) throws NotFoundException {
+		log.trace("/workLists/{}/items/{}/status/{} [PUT] called: {}", workListId, workItemId, status);
+		UserI user = readUser(principal.getName());
+		Integer ownerXdatUserId = user.getID();
+
+		final WorkList workList = _workListService.findById(workListId);
+		if (workList == null) {
+			if (Roles.isSiteAdmin(user)) {
+				throw new NotFoundException("No workList with the ID \"" + workListId + "\" was found.");
+			} else {
+				throw new AccessDeniedException("Access to the ID \"" + workListId + "\" is forbidden");
+			}
+		}
+		if (!Roles.isSiteAdmin(user) && ownerXdatUserId != workList.getOwnerXdatUserId()) {
+			throw new AccessDeniedException("Access to the ID \"" + workListId + "\" is forbidden");
+		}
+
+		final WorkItem workItem = _workItemService.findById(workItemId);
+		if (workItem == null) {
+			throw new NotFoundException("No workItem with the ID \"" + workItemId + "\" was found.");
+		}
+
+		if (status == workItem.getStatus()) {
+			return workItem;
+		}
+
+		workItem.setStatus(status);
+		_workItemService.update(workItem);
+		return workItem;
 	}
 
 	@ApiOperation(value = "Deletes the indicated workList.", notes = "Based on primary key ID, not subject or record ID.", response = Long.class)

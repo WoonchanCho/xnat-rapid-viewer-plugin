@@ -41,7 +41,7 @@ public class WorkItem extends AbstractHibernateEntity {
 	private static final long serialVersionUID = 1L;
 
 	public static enum WorkItemStatus {
-		InProgress, Open, Partial, Complete
+		InProgress, Open, Partial, Complete, Cancelled
 	}
 
 	@Converter(autoApply = true)
@@ -87,7 +87,7 @@ public class WorkItem extends AbstractHibernateEntity {
 
 	@NotNull
 	private WorkItemStatus _status;
-	
+
 	@JsonBackReference
 	@ManyToOne
 	@JoinColumn(name = "workListId", nullable = false)

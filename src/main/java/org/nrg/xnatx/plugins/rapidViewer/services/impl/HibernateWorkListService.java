@@ -8,16 +8,14 @@
 
 package org.nrg.xnatx.plugins.rapidViewer.services.impl;
 
-import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 
 import org.nrg.framework.orm.hibernate.AbstractHibernateEntityService;
 import org.nrg.xnatx.plugins.rapidViewer.entities.WorkList;
 import org.nrg.xnatx.plugins.rapidViewer.entities.WorkList.WorkListStatus;
 import org.nrg.xnatx.plugins.rapidViewer.repositories.WorkListRepository;
 import org.nrg.xnatx.plugins.rapidViewer.services.WorkListService;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -40,39 +38,18 @@ public class HibernateWorkListService extends AbstractHibernateEntityService<Wor
 		return getDao().findByUniqueProperty("id", id);
 	}
 
-	@Transactional
 	@Override
-	public List<WorkList> findByOwnerXdatUserId(final Integer ownerXdatUserId) {
-		log.trace("Requested WorkList with ownerXdatUserId \"{}\"", ownerXdatUserId);
-		List<WorkList> workLists = getDao().findByProperty("ownerXdatUserId", ownerXdatUserId);
-		if (workLists == null) {
-			workLists = new ArrayList<>();
-		}
-		return workLists;
+	public List<WorkList> getWorkLists(Integer ownerXdatUserId, String orderBy, boolean isAsc, Integer offset,
+			Integer limit) {
+		return _dao.getWorkLists(ownerXdatUserId, orderBy, isAsc, offset, limit);
 	}
 
-	@Transactional
 	@Override
-	public List<WorkList> findByOwnerXdatUserIdAndStatus(Integer ownerXdatUserId, WorkListStatus status) {
-		log.trace("Requested WorkList with ownerXdatUserId \"{}\" and status \"{}\"", ownerXdatUserId, status);
-		Map<String, Object> properties = new HashMap<>();
-		properties.put("ownerXdatUserId", ownerXdatUserId);
-		properties.put("status", status);
-		List<WorkList> workLists = getDao().findByProperties(properties);
-		if (workLists == null) {
-			workLists = new ArrayList<>();
-		}
-		return workLists;
+	public List<WorkList> getWorkListsByStatus(Integer ownerXdatUserId, WorkListStatus status, String orderBy,
+			boolean isAsc, int offset, int limit) {
+		return _dao.getWorkListsByStatus(ownerXdatUserId, status, orderBy, isAsc, offset, limit);
 	}
 
-//	private void setItems(List<WorkList> workLists) {
-//		for (WorkList workList : workLists) {
-//			List<WorkListItem> items = _itemService.findByWorkListId(workList.getId());
-//			workList.setItems(items);
-//
-//		}
-//	}
-//
-//	@Autowired
-//	private WorkListItemService _itemService;
+	@Autowired
+	private WorkListRepository _dao;
 }
